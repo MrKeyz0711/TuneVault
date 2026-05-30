@@ -1,6 +1,6 @@
 {
-  "name": "TuneVault",
-  "short_name": "TuneVault",
+  "name": "OffBeats",
+  "short_name": "OffBeats",
   "description": "Your personal offline music vault",
   "start_url": "index.html",
   "display": "standalone",
