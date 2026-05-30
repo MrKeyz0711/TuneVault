@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OffBeats</title>
+    <title>TuneVault</title>
     
     <!-- PWA Support -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="OffBeats">
+    <meta name="apple-mobile-web-app-title" content="TuneVault">
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -33,7 +33,7 @@
         <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-emerald-500 rounded-2xl flex items-center justify-center text-2xl">🎵</div>
-                <h1 class="text-2xl font-bold tracking-tighter">OffBeats</h1>
+                <h1 class="text-2xl font-bold tracking-tighter">TuneVault</h1>
             </div>
             
             <div class="flex items-center gap-3">
@@ -175,7 +175,7 @@
     let dbReady = false;
 
     // ================== IndexedDB ==================
-    const request = indexedDB.open("OffBeatsDB", 1);
+    const request = indexedDB.open("TuneVaultDB", 1);
 
     request.onupgradeneeded = (event) => {
         db = event.target.result;
@@ -287,7 +287,7 @@
             const url = URL.createObjectURL(content);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `OffBeats_Backup_${new Date().toISOString().slice(0, 10)}.zip`;
+            a.download = `TuneVault_Backup_${new Date().toISOString().slice(0, 10)}.zip`;
             a.click();
             URL.revokeObjectURL(url);
 
@@ -310,6 +310,12 @@
             const file = e.target.files[0];
             if (!file) return;
 
+            // Show progress indicator
+            const progressEl = document.createElement('div');
+            progressEl.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#18181b;border:1px solid #22c55e;color:#fff;padding:12px 24px;border-radius:24px;z-index:99999;font-size:14px;white-space:nowrap;';
+            progressEl.textContent = 'Importing... 0%';
+            document.body.appendChild(progressEl);
+
             try {
                 const zip = await JSZip.loadAsync(file);
                 const jsonFile = zip.file("songs.json");
@@ -317,6 +323,7 @@
 
                 const jsonText = await jsonFile.async("string");
                 const importedMetadata = JSON.parse(jsonText);
+                const total = importedMetadata.length;
 
                 // Clear old library
                 songs = [];
@@ -332,13 +339,11 @@
                     let dataURL;
 
                     if (audioFile) {
-                        // Determine MIME type from fileName extension
                         const ext = meta.fileName.split('.').pop().toLowerCase();
                         const mimeMap = { mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', ogg: 'audio/ogg', flac: 'audio/flac', mpeg: 'audio/mpeg' };
                         const mimeType = mimeMap[ext] || 'audio/mpeg';
 
                         const rawBlob = await audioFile.async("blob");
-                        // Re-wrap with correct MIME type so readAsDataURL produces a playable data URI
                         const typedBlob = new Blob([rawBlob], { type: mimeType });
                         dataURL = await new Promise(resolve => {
                             const reader = new FileReader();
@@ -360,15 +365,34 @@
                         data: dataURL
                     };
 
-                    songs.push(song);
-                    saveSongToDB(song);
+                    // Save to DB immediately — don't hold all song data in memory at once
+                    await new Promise(resolve => {
+                        const t = db.transaction(["songs"], "readwrite");
+                        t.objectStore("songs").put(song).onsuccess = resolve;
+                    });
+
                     importedCount++;
+
+                    // Update progress and yield to browser to prevent freezing
+                    progressEl.textContent = `Importing... ${Math.round(importedCount / total * 100)}% (${importedCount}/${total})`;
+                    await new Promise(resolve => setTimeout(resolve, 0));
                 }
 
+                // Reload from DB — songs array holds metadata only, not audio data blobs
+                await new Promise(resolve => {
+                    const t = db.transaction(["songs"], "readonly");
+                    t.objectStore("songs").getAll().onsuccess = (ev) => {
+                        songs = ev.target.result;
+                        resolve();
+                    };
+                });
+
+                progressEl.remove();
                 renderSongList();
                 alert(`✅ Successfully imported ${importedCount} songs!`);
             } catch (err) {
                 console.error(err);
+                progressEl.remove();
                 alert("Import failed. The backup file may be corrupted or invalid.");
             }
         };
@@ -657,7 +681,7 @@
     audio.addEventListener('pause', () => document.getElementById('play-pause-btn').innerHTML = '▶️');
     audio.addEventListener('play', () => document.getElementById('play-pause-btn').innerHTML = '⏸️');
 
-    window.onload = () => console.log("%c✅ OffBeats Ready", "color:#22c55e; font-size:15px");
+    window.onload = () => console.log("%c✅ TuneVault Ready", "color:#22c55e; font-size:15px");
 </script>
 </body>
 </html>
