@@ -17,7 +17,12 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
         * { font-family: 'Inter', system_ui, sans-serif; }
-        /* ... rest of your styles ... */
+        .song-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .playing { border: 2px solid #22c55e; background: #052e16; }
+        .modal { animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes modalPop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .drop-zone { border: 2px dashed #4b5563; transition: all 0.3s; }
+        .drop-zone.dragover { border-color: #22c55e; background: #052e16; }
     </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen">
@@ -30,17 +35,27 @@
             <h1 class="text-2xl font-bold tracking-tighter">TuneVault</h1>
         </div>
         
-        <button onclick="showUploadModal()" 
-                class="bg-emerald-500 hover:bg-emerald-600 px-5 py-2.5 rounded-3xl flex items-center gap-2 font-medium text-sm">
-            <span class="text-lg">↑</span> Add Song
-        </button>
+        <div class="flex items-center gap-3">
+            <button onclick="exportLibrary()" 
+                    class="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white">
+                📤 Export
+            </button>
+            <button onclick="importLibrary()" 
+                    class="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white">
+                📥 Import
+            </button>
+            <button onclick="showUploadModal()" 
+                    class="bg-emerald-500 hover:bg-emerald-600 px-5 py-2.5 rounded-3xl flex items-center gap-2 font-medium text-sm">
+                <span class="text-lg">↑</span> Add Song
+            </button>
+        </div>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
         <!-- Sidebar -->
         <div class="w-64 bg-zinc-900 border-r border-zinc-800 p-4 hidden md:flex flex-col">
             <nav class="space-y-1">
-                <a onclick="setFilter('all')" class="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 rounded-2xl cursor-pointer active">📚 Your Library</a>
+                <a onclick="setFilter('all')" class="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 rounded-2xl cursor-pointer">📚 Your Library</a>
                 <a onclick="setFilter('favorites')" class="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 rounded-2xl cursor-pointer">❤️ Favorites</a>
             </nav>
             <button onclick="loadDemoSongs()" 
@@ -79,7 +94,7 @@
             <div id="empty-state" class="hidden flex-col items-center justify-center flex-1 text-center px-6">
                 <div class="text-6xl mb-6 opacity-40">🎵</div>
                 <h3 class="text-xl font-medium">No songs yet</h3>
-                <p class="text-zinc-400 mt-2">Tap "Add Song" to upload MP3 or WAV files</p>
+                <p class="text-zinc-400 mt-2">Tap "Add Song" to upload music</p>
             </div>
         </div>
     </div>
@@ -151,7 +166,7 @@
     let db;
     let dbReady = false;
 
-    // ================== IndexedDB Setup ==================
+    // ================== IndexedDB ==================
     const request = indexedDB.open("TuneVaultDB", 1);
 
     request.onupgradeneeded = (event) => {
@@ -182,11 +197,8 @@
     function loadSongsFromDB() {
         if (!dbReady) return;
         const tx = db.transaction(["songs"], "readonly");
-        const store = tx.objectStore("songs");
-        const getAll = store.getAll();
-
-        getAll.onsuccess = () => {
-            songs = getAll.result || [];
+        tx.objectStore("songs").getAll().onsuccess = (e) => {
+            songs = e.target.result || [];
             renderSongList();
         };
     }
@@ -196,83 +208,76 @@
         return new Promise((resolve) => {
             const url = URL.createObjectURL(file);
             const tempAudio = new Audio(url);
-            
             tempAudio.addEventListener('loadedmetadata', () => {
                 const min = Math.floor(tempAudio.duration / 60);
                 const sec = Math.floor(tempAudio.duration % 60);
                 URL.revokeObjectURL(url);
                 resolve(`${min}:${sec < 10 ? '0' : ''}${sec}`);
             });
-
             tempAudio.addEventListener('error', () => resolve("0:00"));
         });
     }
 
-    // ================== Rendering ==================
-    function setFilter(filter) {
-        currentFilter = filter;
-        document.getElementById('page-title').textContent = filter === 'all' ? 'Your Library' : 'Favorites';
-        renderSongList();
-    }
-
-    function renderSongList() {
-        const filtered = currentFilter === 'favorites' 
-            ? songs.filter(s => s.isFavorite) 
-            : songs;
-
-        const tbody = document.getElementById('song-table-body');
-        const mobileList = document.getElementById('mobile-song-list');
-        
-        tbody.innerHTML = '';
-        mobileList.innerHTML = '';
-
-        if (filtered.length === 0) {
-            document.getElementById('empty-state').classList.remove('hidden');
-            document.getElementById('page-subtitle').textContent = '0 songs';
+    // ================== Export & Import ==================
+    function exportLibrary() {
+        if (songs.length === 0) {
+            alert("Your library is empty!");
             return;
         }
 
-        document.getElementById('empty-state').classList.add('hidden');
-        document.getElementById('page-subtitle').textContent = `${filtered.length} song${filtered.length !== 1 ? 's' : ''}`;
+        const exportData = {
+            version: "1.0",
+            exportDate: new Date().toISOString(),
+            songCount: songs.length,
+            songs: songs
+        };
 
-        filtered.forEach((song, i) => {
-            // Desktop
-            const tr = document.createElement('tr');
-            tr.className = `hover:bg-zinc-800 cursor-pointer ${currentSong?.id === song.id ? 'playing bg-zinc-800' : ''}`;
-            tr.innerHTML = `
-                <td class="py-4">${i+1}</td>
-                <td class="py-4 font-medium">${song.title}</td>
-                <td class="py-4 text-zinc-400">${song.artist}</td>
-                <td class="py-4 text-right">${song.duration}</td>
-                <td class="py-4 text-center"><button onclick="event.stopImmediatePropagation(); toggleFavorite(${song.id})">${song.isFavorite ? '❤️' : '♡'}</button></td>
-                <td class="py-4 text-center"><button onclick="event.stopImmediatePropagation(); deleteSong(${song.id})" class="text-red-400">🗑️</button></td>
-            `;
-            tr.onclick = () => playSong(song.id);
-            tbody.appendChild(tr);
-
-            // Mobile
-            const card = document.createElement('div');
-            card.className = `song-card bg-zinc-900 rounded-3xl p-4 flex gap-4 ${currentSong?.id === song.id ? 'playing' : ''}`;
-            card.innerHTML = `
-                <div class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-2xl flex items-center justify-center text-4xl flex-shrink-0">🎵</div>
-                <div class="flex-1 min-w-0">
-                    <p class="font-medium">${song.title}</p>
-                    <p class="text-sm text-zinc-400">${song.artist}</p>
-                    <p class="text-xs text-emerald-400">${song.duration}</p>
-                </div>
-                <div class="flex flex-col items-end gap-4">
-                    <button onclick="event.stopImmediatePropagation(); toggleFavorite(${song.id})" class="text-2xl">${song.isFavorite ? '❤️' : '♡'}</button>
-                    <button onclick="event.stopImmediatePropagation(); deleteSong(${song.id})" class="text-red-400">🗑️</button>
-                </div>
-            `;
-            card.onclick = () => playSong(song.id);
-            mobileList.appendChild(card);
-        });
-
-        currentPlaylist = filtered;
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `TuneVault_Backup_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
-    // ================== Upload ==================
+    function importLibrary() {
+        if (!confirm("This will REPLACE your current library with the backup file.\n\nContinue?")) return;
+
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".json";
+        input.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (!data.songs || !Array.isArray(data.songs)) {
+                        alert("Invalid backup file!");
+                        return;
+                    }
+
+                    // Clear current DB
+                    const clearTx = db.transaction(["songs"], "readwrite");
+                    clearTx.objectStore("songs").clear().onsuccess = () => {
+                        songs = data.songs;
+                        songs.forEach(song => saveSongToDB(song));
+                        renderSongList();
+                        alert(`✅ Successfully imported ${songs.length} songs!`);
+                    };
+                } catch (err) {
+                    alert("Failed to import file. Please select a valid TuneVault backup.");
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+
+    // ================== Upload & Other Functions ==================
     function showUploadModal() {
         document.getElementById('upload-modal').classList.remove('hidden');
         document.getElementById('file-info').classList.add('hidden');
@@ -288,32 +293,16 @@
     const fileInput = document.getElementById('modal-file-input');
 
     dropZone.addEventListener('click', () => fileInput.click());
-
-    // Drag and Drop
-    dropZone.addEventListener('dragover', e => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', e => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        handleFiles(e.dataTransfer.files);
-    });
-
     fileInput.addEventListener('change', e => handleFiles(e.target.files));
 
     function handleFiles(files) {
-        if (files.length === 1) {
-            handleSelectedFile(files[0]);
-        } else if (files.length > 1) {
-            importAlbum(Array.from(files));
-        }
+        if (files.length === 1) handleSelectedFile(files[0]);
+        else if (files.length > 1) importAlbum(Array.from(files));
     }
 
     function handleSelectedFile(file) {
         if (!file.type.startsWith('audio/') && !file.name.match(/\.(mp3|wav|m4a|ogg|flac)$/i)) {
-            alert("Unsupported file. Please use audio files only.");
+            alert("Unsupported file. Please use audio files.");
             return;
         }
         pendingFile = file;
@@ -324,10 +313,8 @@
 
     async function addCurrentFile() {
         if (!pendingFile) return;
-
         const title = document.getElementById('song-title').value.trim() || "Untitled";
         const artist = document.getElementById('song-artist').value.trim() || "Unknown Artist";
-
         const duration = await getAudioDuration(pendingFile);
 
         const reader = new FileReader();
@@ -340,25 +327,20 @@
                 data: e.target.result,
                 isFavorite: false
             };
-
             songs.unshift(songData);
             saveSongToDB(songData);
             renderSongList();
             hideUploadModal();
-
             if (songs.length === 1) playSong(songData.id);
         };
         reader.readAsDataURL(pendingFile);
     }
 
     async function importAlbum(files) {
-        let imported = 0;
         for (const file of files) {
             if (!file.type.startsWith('audio/') && !file.name.match(/\.(mp3|wav|m4a|ogg|flac)$/i)) continue;
-
             const duration = await getAudioDuration(file);
             const reader = new FileReader();
-
             reader.onload = function(e) {
                 const songData = {
                     id: Date.now() + Math.random(),
@@ -368,28 +350,22 @@
                     data: e.target.result,
                     isFavorite: false
                 };
-
                 songs.push(songData);
                 saveSongToDB(songData);
-                imported++;
-
-                if (imported === files.filter(f => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|m4a|ogg|flac)$/i)).length) {
-                    renderSongList();
-                    hideUploadModal();
-                }
+                renderSongList();
             };
             reader.readAsDataURL(file);
         }
+        hideUploadModal();
     }
 
-    // ================== Player ==================
+    // ================== Player Functions ==================
     function playSong(id) {
         const song = songs.find(s => s.id === id);
         if (!song) return;
-
         currentSong = song;
         audio.src = song.data;
-        audio.play().catch(console.error);
+        audio.play();
 
         document.getElementById('player').classList.remove('hidden');
         document.getElementById('now-title').textContent = song.title;
@@ -403,11 +379,7 @@
 
     function togglePlay() {
         if (!currentSong) return;
-        if (audio.paused) {
-            audio.play();
-        } else {
-            audio.pause();
-        }
+        audio.paused ? audio.play() : audio.pause();
     }
 
     function playNext() {
@@ -455,7 +427,6 @@
         if (!confirm("Delete this song permanently?")) return;
         songs = songs.filter(s => s.id !== id);
         deleteSongFromDB(id);
-
         if (currentSong?.id === id) {
             audio.pause();
             document.getElementById('player').classList.add('hidden');
@@ -466,21 +437,73 @@
 
     function loadDemoSongs() {
         const demos = [
-            {title: "SoundHelix Song #1", artist: "T. Schürger", duration: "3:45", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"},
-            {title: "SoundHelix Song #16", artist: "T. Schürger", duration: "4:12", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3"}
+            {title: "SoundHelix Song #1", artist: "T. Schürger", duration: "3:45", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"}
         ];
         demos.forEach(d => {
-            songs.unshift({
-                id: Date.now() + Math.random(),
-                ...d,
-                data: d.url,
-                isFavorite: false
-            });
+            songs.unshift({ id: Date.now() + Math.random(), ...d, data: d.url, isFavorite: false });
         });
         renderSongList();
     }
 
-    // Audio Event Listeners
+    function setFilter(filter) {
+        currentFilter = filter;
+        document.getElementById('page-title').textContent = filter === 'all' ? 'Your Library' : 'Favorites';
+        renderSongList();
+    }
+
+    function renderSongList() {
+        const filtered = currentFilter === 'favorites' ? songs.filter(s => s.isFavorite) : songs;
+        const tbody = document.getElementById('song-table-body');
+        const mobileList = document.getElementById('mobile-song-list');
+        
+        tbody.innerHTML = '';
+        mobileList.innerHTML = '';
+
+        if (filtered.length === 0) {
+            document.getElementById('empty-state').classList.remove('hidden');
+            document.getElementById('page-subtitle').textContent = '0 songs';
+            return;
+        }
+
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('page-subtitle').textContent = `${filtered.length} song${filtered.length !== 1 ? 's' : ''}`;
+
+        filtered.forEach((song, i) => {
+            const tr = document.createElement('tr');
+            tr.className = `hover:bg-zinc-800 cursor-pointer ${currentSong?.id === song.id ? 'playing bg-zinc-800' : ''}`;
+            tr.innerHTML = `
+                <td class="py-4">${i+1}</td>
+                <td class="py-4 font-medium">${song.title}</td>
+                <td class="py-4 text-zinc-400">${song.artist}</td>
+                <td class="py-4 text-right">${song.duration}</td>
+                <td class="py-4 text-center"><button onclick="event.stopImmediatePropagation(); toggleFavorite(${song.id})">${song.isFavorite ? '❤️' : '♡'}</button></td>
+                <td class="py-4 text-center"><button onclick="event.stopImmediatePropagation(); deleteSong(${song.id})" class="text-red-400">🗑️</button></td>
+            `;
+            tr.onclick = () => playSong(song.id);
+            tbody.appendChild(tr);
+
+            const card = document.createElement('div');
+            card.className = `song-card bg-zinc-900 rounded-3xl p-4 flex gap-4 ${currentSong?.id === song.id ? 'playing' : ''}`;
+            card.innerHTML = `
+                <div class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-2xl flex items-center justify-center text-4xl flex-shrink-0">🎵</div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-medium">${song.title}</p>
+                    <p class="text-sm text-zinc-400">${song.artist}</p>
+                    <p class="text-xs text-emerald-400">${song.duration}</p>
+                </div>
+                <div class="flex flex-col items-end gap-4">
+                    <button onclick="event.stopImmediatePropagation(); toggleFavorite(${song.id})" class="text-2xl">${song.isFavorite ? '❤️' : '♡'}</button>
+                    <button onclick="event.stopImmediatePropagation(); deleteSong(${song.id})" class="text-red-400">🗑️</button>
+                </div>
+            `;
+            card.onclick = () => playSong(song.id);
+            mobileList.appendChild(card);
+        });
+
+        currentPlaylist = filtered;
+    }
+
+    // Audio Events
     audio.addEventListener('timeupdate', () => {
         if (audio.duration) {
             document.getElementById('progress-bar').style.width = (audio.currentTime / audio.duration * 100) + '%';
