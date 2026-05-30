@@ -1,4 +1,4 @@
-**🎵 OffBeatst**
+**🎵 OffBeats**
 
 Your music. Your device. No strings attached.
 Tired of sitting through ads every two minutes because you won't pay for premium? Same. OffBeats was born out of that frustration, plus a love of building playlists in my college radio days. So I built my own player witht the help of AI. And now it's yours too.
