@@ -236,16 +236,24 @@
 
     // ================== Export & Import ==================
     function exportLibrary() {
-        if (songs.length === 0) return alert("Your library is empty!");
-        const exportData = { version: "1.0", exportDate: new Date().toISOString(), songCount: songs.length, songs: songs };
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `TuneVault_Backup_${new Date().toISOString().slice(0,10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
+    if (songs.length === 0) return alert("Your library is empty!");
+    const exportData = {
+        version: "1.0",
+        exportDate: new Date().toISOString(),
+        songCount: songs.length,
+        songs: songs.map(({ id, title, artist, duration, isFavorite }) => 
+            ({ id, title, artist, duration, isFavorite }))  // strips audio data
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `TuneVault_Backup_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); // fix for Firefox
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
 
     function importLibrary() {
         if (!confirm("This will REPLACE your current library.\nContinue?")) return;
