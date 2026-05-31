@@ -513,6 +513,24 @@
         if (song.art) { img.src=song.art; img.classList.remove('hidden'); emoji.classList.add('hidden'); }
         else { img.classList.add('hidden'); emoji.classList.remove('hidden'); }
         currentIndex = currentPlaylist.findIndex(s=>s.id===id);
+
+        // Update tab/window title to show current song
+        document.title = `${song.title} — ${song.artist} | OffBeats`;
+
+        // Media Session API — enables steering wheel, lock screen, headphone controls
+        if ('mediaSession' in navigator) {
+            const artwork = song.art ? [{ src: song.art, sizes: '512x512', type: 'image/jpeg' }] : [];
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: song.title,
+                artist: song.artist,
+                artwork: artwork
+            });
+            navigator.mediaSession.setActionHandler('play', () => audio.play());
+            navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+            navigator.mediaSession.setActionHandler('nexttrack', playNext);
+            navigator.mediaSession.setActionHandler('previoustrack', playPrevious);
+        }
+
         renderSongList();
     }
 
@@ -659,6 +677,8 @@
     // Audio Events
     audio.addEventListener('timeupdate', () => { if (audio.duration) document.getElementById('progress-bar').style.width=(audio.currentTime/audio.duration*100)+'%'; });
     audio.addEventListener('ended', () => { if (!isLooping) playNext(); });
+    audio.addEventListener('pause', () => { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
+    audio.addEventListener('play', () => { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
     audio.addEventListener('pause', () => {
         document.getElementById('icon-play').classList.remove('hidden');
         document.getElementById('icon-pause').classList.add('hidden');
