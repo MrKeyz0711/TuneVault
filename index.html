@@ -46,7 +46,7 @@
                         <button onclick="exportLibrary();closeLibraryMenu()" class="w-full text-left px-4 py-3 hover:bg-zinc-700 text-sm flex items-center gap-2">&#128228; Export Library</button>
                         <button onclick="importLibrary();closeLibraryMenu()" class="w-full text-left px-4 py-3 hover:bg-zinc-700 text-sm flex items-center gap-2">&#128229; Import Library</button>
                         <div class="border-t border-zinc-700 my-1"></div>
-                        <button onclick="showCreatePlaylistModal();closeLibraryMenu()" class="w-full text-left px-4 py-3 hover:bg-zinc-700 text-sm flex items-center gap-2">&#10133; New Playlist</button>
+                        <button onclick="showCreatePlaylistModal();closeLibraryMenu()" class="w-full text-left px-4 py-3 hover:bg-zinc-700 text-sm flex items-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Playlist</button>
                         <button onclick="loadDemoSongs();closeLibraryMenu()" class="w-full text-left px-4 py-3 hover:bg-zinc-700 text-sm flex items-center gap-2">&#127911; Demo Tracks</button>
                     </div>
                 </div>
@@ -72,7 +72,7 @@
             <p class="text-xs text-zinc-500 uppercase px-3 mb-1 mt-4">Playlists</p>
             <div id="sidebar-playlists" class="flex flex-col gap-1"></div>
             <button onclick="showCreatePlaylistModal()" class="flex items-center gap-2 px-4 py-2 text-zinc-500 hover:text-emerald-400 text-sm rounded-2xl hover:bg-zinc-800 mt-1">
-                &#10133; New Playlist
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Playlist
             </button>
         </div>
 
@@ -133,11 +133,22 @@
             <button onclick="toggleFavoriteInPlayer()" id="player-favorite-btn" class="text-2xl text-zinc-400 hover:text-amber-400">&#9825;</button>
         </div>
         <div class="flex items-center justify-center gap-5 mb-3">
-            <button onclick="toggleShuffle()" id="shuffle-btn" class="text-xl text-zinc-400 hover:text-white" title="Shuffle">&#128256;</button>
-            <button onclick="toggleLoop()" id="loop-btn" class="text-xl text-zinc-400 hover:text-white" title="Loop">&#128257;</button>
-            <button onclick="playPrevious()" class="text-2xl text-zinc-400 hover:text-white">&#9198;&#65039;</button>
-            <button onclick="togglePlay()" id="play-pause-btn" class="w-14 h-14 bg-white text-zinc-950 rounded-3xl flex items-center justify-center text-2xl">&#9654;&#65039;</button>
-            <button onclick="playNext()" class="text-2xl text-zinc-400 hover:text-white">&#9197;&#65039;</button>
+            <button onclick="toggleShuffle()" id="shuffle-btn" class="text-zinc-400 hover:text-white transition-colors" title="Shuffle">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+            </button>
+            <button onclick="toggleLoop()" id="loop-btn" class="text-zinc-400 hover:text-white transition-colors" title="Loop">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </button>
+            <button onclick="playPrevious()" class="text-zinc-400 hover:text-white transition-colors">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+            </button>
+            <button onclick="togglePlay()" id="play-pause-btn" class="w-14 h-14 bg-white text-zinc-950 rounded-3xl flex items-center justify-center hover:scale-105 transition-transform">
+                <svg id="icon-play" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                <svg id="icon-pause" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" class="hidden"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <button onclick="playNext()" class="text-zinc-400 hover:text-white transition-colors">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 3.9V8.1L8.5 12zM16 6h2v12h-2z"/></svg>
+            </button>
         </div>
         <div onclick="seek(event)" class="h-1 bg-zinc-700 rounded-full cursor-pointer relative overflow-hidden">
             <div id="progress-bar" class="h-1 bg-emerald-500 rounded-full w-0 transition-all"></div>
@@ -496,7 +507,8 @@
         document.getElementById('now-title').textContent = song.title;
         document.getElementById('now-artist').textContent = song.artist;
         document.getElementById('player-favorite-btn').innerHTML = song.isFavorite ? '&#10084;&#65039;' : '&#9825;';
-        document.getElementById('play-pause-btn').innerHTML = '&#9208;&#65039;';
+        document.getElementById('icon-play').classList.add('hidden');
+        document.getElementById('icon-pause').classList.remove('hidden');
         const emoji = document.getElementById('now-art-emoji'), img = document.getElementById('now-art-img');
         if (song.art) { img.src=song.art; img.classList.remove('hidden'); emoji.classList.add('hidden'); }
         else { img.classList.add('hidden'); emoji.classList.remove('hidden'); }
@@ -613,7 +625,7 @@
                 <td class="py-3 text-zinc-400">${song.artist}</td>
                 <td class="py-3 text-right text-zinc-400 pr-2">${song.duration}</td>
                 <td class="py-3 text-center"><button onclick="event.stopImmediatePropagation();toggleFavorite(${song.id})">${song.isFavorite?'&#10084;&#65039;':'&#9825;'}</button></td>
-                <td class="py-3 text-center"><button onclick="event.stopImmediatePropagation();showAddToPlaylistModal(${song.id})" class="text-zinc-400 hover:text-white" title="Add to playlist">&#10133;</button></td>
+                <td class="py-3 text-center"><button onclick="event.stopImmediatePropagation();showAddToPlaylistModal(${song.id})" class="text-zinc-400 hover:text-white" title="Add to playlist"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"/><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"/></svg></button></td>
                 <td class="py-3 text-center">${isInPlaylist
                     ?`<button onclick="event.stopImmediatePropagation();removeSongFromPlaylist(${song.id},${playlistId})" class="text-zinc-500 hover:text-red-400" title="Remove">&#10005;</button>`
                     :`<button onclick="event.stopImmediatePropagation();deleteSong(${song.id})" class="text-red-400" title="Delete">&#128465;&#65039;</button>`}</td>
@@ -632,7 +644,7 @@
                 </div>
                 <div class="flex flex-col items-end gap-2">
                     <button onclick="event.stopImmediatePropagation();toggleFavorite(${song.id})" class="text-xl">${song.isFavorite?'&#10084;&#65039;':'&#9825;'}</button>
-                    <button onclick="event.stopImmediatePropagation();showAddToPlaylistModal(${song.id})" class="text-zinc-400 text-sm">&#10133;</button>
+                    <button onclick="event.stopImmediatePropagation();showAddToPlaylistModal(${song.id})" class="text-zinc-400 text-sm"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"/><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"/></svg></button>
                     ${isInPlaylist
                         ?`<button onclick="event.stopImmediatePropagation();removeSongFromPlaylist(${song.id},${playlistId})" class="text-zinc-500 text-sm">&#10005;</button>`
                         :`<button onclick="event.stopImmediatePropagation();deleteSong(${song.id})" class="text-red-400 text-sm">&#128465;&#65039;</button>`}
@@ -647,8 +659,14 @@
     // Audio Events
     audio.addEventListener('timeupdate', () => { if (audio.duration) document.getElementById('progress-bar').style.width=(audio.currentTime/audio.duration*100)+'%'; });
     audio.addEventListener('ended', () => { if (!isLooping) playNext(); });
-    audio.addEventListener('pause', () => document.getElementById('play-pause-btn').innerHTML='&#9654;&#65039;');
-    audio.addEventListener('play', () => document.getElementById('play-pause-btn').innerHTML='&#9208;&#65039;');
+    audio.addEventListener('pause', () => {
+        document.getElementById('icon-play').classList.remove('hidden');
+        document.getElementById('icon-pause').classList.add('hidden');
+    });
+    audio.addEventListener('play', () => {
+        document.getElementById('icon-play').classList.add('hidden');
+        document.getElementById('icon-pause').classList.remove('hidden');
+    });
 
     document.getElementById('playlist-name-input').addEventListener('keydown', e => { if (e.key==='Enter') createPlaylist(); });
 
